@@ -7,50 +7,17 @@ var log;
 function instance(system, id, config) {
 	let self = this;
 
-	// Decimal codes for the instructions supported by Kramer Matrix (Protocol 2000).
-	// See https://kramerav.com/support/download.asp?f=35567
-	// See https://kramerav.com/downloads/protocols/protocol_2000_rev0_51.pdf
-	self.SWITCH_VIDEO   =  1;
-	self.SWITCH_AUDIO   =  2;
-	self.STORE_SETUP    =  3;
-	self.RECALL_SETUP   =  4;
-	self.FRONT_PANEL    = 30;
-	self.DEFINE_MACHINE = 62;
-
-	self.CAPS_VIDEO_INPUTS  = 1;
-	self.CAPS_VIDEO_OUTPUTS = 2;
-	self.CAPS_SETUPS        = 3;
-
-	//  Define the protocols this module may support:
-	self.PROTOCOL_2000 = '2000';
-	self.PROTOCOL_3000 = '3000';
-
 	//  Define the connection protocols this module will use:
 	self.CONNECT_TCP = 'TCP';
 	self.CONNECT_UDP = 'UDP';
 
-	// Define the possible Protocol 3000 commands to route video:
-	self.ROUTE_ROUTE = 'ROUTE';
-	self.ROUTE_VID   = 'VID';
-
-	// Define the possible parameters to disconnect an output:
-	self.DISCONNECT_0    = '0';
-	self.DISCONNECT_INP1 = '+1';
-	
-
-	// Protocol 2000: The most significant bit for bytes 2-4 must be 1. Adding 128 to
-	//  each of those bytes accomplishes this.
-	self.MSB = 128;
 
 	// A promise that's resolved when the socket connects to the matrix.
 	self.PromiseConnected = null;
 
-	// The number of capabilities we're waiting responses for before saving the config.
-	self.capabilityWaitingResponsesCounter = 0;
-
 	// super-constructor
 	instance_skel.apply(this, arguments);
-	
+
 	self.actions();
 
 	return self;
@@ -63,18 +30,13 @@ function instance(system, id, config) {
  * 
  * @param config         The new config object
  */
-instance.prototype.updateConfig = function(config) {
+instance.prototype.updateConfig = function (config) {
 	let self = this;
-
-	// Convert to a number. Convert to 0 if empty.
-	config.inputCount  = parseInt(config.inputCount  || 0);
-	config.outputCount = parseInt(config.outputCount || 0);
-	config.setupsCount = parseInt(config.setupsCount || 0);
 
 	// Reconnect to the matrix if the IP or protocol changed
 	if (self.config.host !== config.host || self.isConnected() === false || self.config.connectionProtocol !== config.connectionProtocol) {
 		// Have to set the new host IP/protocol before making the connection.
-		self.config.host               = config.host;
+		self.config.host = config.host;
 		self.config.connectionProtocol = config.connectionProtocol;
 		self.init_connection();
 	}
@@ -82,24 +44,11 @@ instance.prototype.updateConfig = function(config) {
 	// Update the rest of the config
 	self.config = config;
 
-	// If any of the values are '0' then attempt to auto-detect:
-	let detectCapabilities = [];
-	if (config.inputCount === 0) {
-		detectCapabilities.push(self.CAPS_VIDEO_INPUTS);
-	}
-	if (config.outputCount === 0) {
-		detectCapabilities.push(self.CAPS_VIDEO_OUTPUTS);
-	}
-	if (config.setupsCount === 0) {
-		detectCapabilities.push(self.CAPS_SETUPS);
-	}
+
 
 
 	if (self.PromiseConnected) {
-		self.PromiseConnected.then(() => {
-			// Once connected, check the capabilities of the matrix if needed.
-			self.detectCapabilities(detectCapabilities);
-		}).catch((err) => {
+		self.PromiseConnected.catch((err) => {
 			// Error while connecting. The error message is already logged, but Node requires
 			//  the rejected promise to be handled.
 		});
@@ -111,42 +60,16 @@ instance.prototype.updateConfig = function(config) {
 };
 
 
-/**
- * Detects the number of inputs/outputs of the matrix.
- * 
- * @param detectCapabilities     An array of capabilities to detect from the matrix
- */
-instance.prototype.detectCapabilities = function(detectCapabilities) {
-	let self = this;
-
-	// Reset the counter
-	self.capabilityWaitingResponsesCounter = 0;
-
-	if (detectCapabilities.length === 0) {
-		// No capabilities to detect.
-		return;
-	}
-
-	for (let i=0; i<detectCapabilities.length; i++) {
-		// Ask the matrix to define its capabilities for anything unknown.
-		let cmd = self.makeCommand(self.DEFINE_MACHINE, detectCapabilities[i], 1);
-
-		// Increment the counter to show we're waiting for a response from a capability.
-		self.capabilityWaitingResponsesCounter++;
-		self.send(cmd);
-	}
-
-};
 
 
 /**
  * Initializes the module and try to detect capabilities.
  */
-instance.prototype.init = function() {
+instance.prototype.init = function () {
 	let self = this;
-	
+
 	debug = self.debug;
-	log   = self.log;
+	log = self.log;
 
 	let configUpgraded = false;
 
@@ -155,16 +78,6 @@ instance.prototype.init = function() {
 
 	if (self.config.connectionProtocol === undefined) {
 		self.config.connectionProtocol = self.CONNECT_TCP;
-		configUpgraded = true;
-	}
-
-	if (self.config.customizeRoute === undefined) {
-		self.config.customizeRoute = self.ROUTE_VID;
-		configUpgraded = true;
-	}
-
-	if (self.config.customizeDisconnect === undefined) {
-		self.config.customizeDisconnect = self.DISCONNECT_0;
 		configUpgraded = true;
 	}
 
@@ -180,7 +93,7 @@ instance.prototype.init = function() {
 /**
  * Connect to the matrix over TCP port 5000 or UDP port 50000.
  */
-instance.prototype.init_connection = function() {
+instance.prototype.init_connection = function () {
 	var self = this;
 
 	if (self.socket !== undefined) {
@@ -198,7 +111,7 @@ instance.prototype.init_connection = function() {
 
 		switch (self.config.connectionProtocol) {
 			case self.CONNECT_TCP:
-				self.socket = new tcp(self.config.host, 5000, { reconnect_interval:5000 });
+				self.socket = new tcp(self.config.host, 5000, { reconnect_interval: 5000 });
 				break;
 
 			case self.CONNECT_UDP:
@@ -230,7 +143,7 @@ instance.prototype.init_connection = function() {
 			resolve();
 		});
 
-		
+
 		if (self.config.connectionProtocol === self.CONNECT_UDP) {
 			// Auto-resolve the promise if this is a UDP connection.
 			resolve();
@@ -253,78 +166,17 @@ instance.prototype.init_connection = function() {
 			return;
 		}
 
-		switch (self.config.protocol) {
-			case self.PROTOCOL_2000:
-				self.receivedData2000(data);
-				break;
+		// data may come in as a multiline response to the request. Handle
+		//  each line separately.
+		data = data.toString().split("\r\n");
 
-			case self.PROTOCOL_3000:
-				// data may come in as a multiline response to the request. Handle
-				//  each line separately.
-				data = data.toString().split("\r\n");
-
-				for (var i=0; i<data.length; i++) {
-					if (data[i].length !== 0) {
-						self.receivedData3000(data[i]);
-					}
-				}
-				break;
-
+		for (var i = 0; i < data.length; i++) {
+			if (data[i].length !== 0) {
+				self.receivedData3000(data[i]);
+			}
 		}
 
 	});
-
-};
-
-
-/**
- * Handles a response from a Protocol 2000 matrix.
- * 
- * @param data     The data received from the matrix (ArrayBuffer)
- */
-instance.prototype.receivedData2000 = function(data) {
-	var self = this;
-
-	// The response to a command returns the first byte with the second most
-	//  significant bit on. If we turn that second bit off, we can compare the
-	//  first byte of the response to the first byte of the command sent to see
-	//  what the response is for.
-	switch (data[0] ^ 64) {
-		case self.DEFINE_MACHINE:
-
-			// Turn off the MSB to get the actual count of this capability.
-			let count = data[2] ^ self.MSB;
-
-			// Turn off the MSB of the second byte to see what the capability
-			//  response is actually for.
-			switch (data[1] ^ self.MSB) {
-				case self.CAPS_VIDEO_INPUTS:
-					self.log('info', `Detected: ${count} inputs.`);
-					self.config.inputCount = count;
-					break;
-
-				case self.CAPS_VIDEO_OUTPUTS:
-					self.log('info', `Detected: ${count} outputs.`);
-					self.config.outputCount = count;
-					break;
-
-				case self.CAPS_SETUPS:
-					self.log('info', `Detected: ${count} presets.`);
-					self.config.setupsCount = count;
-					break;
-
-			}
-
-			// Decrement the counter now that it responded. Save the config
-			//  if all the requests responded.
-			if (--self.capabilityWaitingResponsesCounter === 0) {
-				// Update the actions now that the new capabilities have been stored.
-				self.actions();
-				self.saveConfig();
-			}
-			break;
-
-	}
 
 };
 
@@ -334,11 +186,8 @@ instance.prototype.receivedData2000 = function(data) {
  * 
  * @param data     The data received from the matrix (string)
  */
-instance.prototype.receivedData3000 = function(data) {
+instance.prototype.receivedData3000 = function (data) {
 	var self = this;
-
-	// Decrement the counter now that it responded.
-	--self.capabilityWaitingResponsesCounter;
 
 	// Response will look like: ~01@COMMAND PARAMETERS
 	var response = data.match(/^~\d+@([\w-]+)\s(.*)/);
@@ -381,13 +230,6 @@ instance.prototype.receivedData3000 = function(data) {
 
 	}
 
-	// Save the config if all the requests responded.
-	if (self.capabilityWaitingResponsesCounter === 0) {
-		// Update the actions now that the new capabilities have been stored.
-		self.actions();
-		self.saveConfig();
-	}
-
 };
 
 
@@ -397,7 +239,7 @@ instance.prototype.receivedData3000 = function(data) {
  * @param cmd      The command to send (ArrayBuffer)
  * @returns        Success state of writing to the socket
  */
-instance.prototype.send = function(cmd) {
+instance.prototype.send = function (cmd) {
 	let self = this;
 
 	if (self.isConnected()) {
@@ -417,7 +259,7 @@ instance.prototype.send = function(cmd) {
  * 
  * @returns      If the socket is connected
  */
-instance.prototype.isConnected = function() {
+instance.prototype.isConnected = function () {
 	let self = this;
 
 	switch (self.config.connectionProtocol) {
@@ -428,7 +270,7 @@ instance.prototype.isConnected = function() {
 			return self.socket !== undefined;
 
 	}
-	
+
 	return false;
 
 };
@@ -439,7 +281,7 @@ instance.prototype.isConnected = function() {
  * 
  * @returns      The config fields for the module
  */
-instance.prototype.config_fields = function() {
+instance.prototype.config_fields = function () {
 	let self = this;
 	return [
 		{
@@ -447,8 +289,7 @@ instance.prototype.config_fields = function() {
 			id: 'info',
 			width: 12,
 			label: 'Information',
-			value: "This module works with Kramer matrices using Protocol 2000 and Protocol 3000. " +
-					"Check your matrices' manual to confirm which protocol is supported."
+			value: "This module works with the Kramer VS-411XS Switcher using Protocol 3000"
 		},
 		{
 			type: 'textinput',
@@ -456,17 +297,6 @@ instance.prototype.config_fields = function() {
 			label: 'Target IP',
 			width: 4,
 			regex: self.REGEX_IP
-		},
-		{
-			type: 'dropdown',
-			id: 'protocol',
-			label: 'Protocol',
-			default: self.PROTOCOL_3000,
-			width: 4,
-			choices: [
-				{ id: self.PROTOCOL_2000, label: 'Protocol 2000' },
-				{ id: self.PROTOCOL_3000, label: 'Protocol 3000' }
-			]
 		},
 		{
 			type: 'dropdown',
@@ -479,67 +309,6 @@ instance.prototype.config_fields = function() {
 				{ id: self.CONNECT_UDP, label: 'UDP (Port 50000)' }
 			]
 		},
-		{
-			type: 'text',
-			id: 'info',
-			width: 12,
-			label: 'Counts',
-			value: "Set the number of inputs, outputs, and presets the matrix supports. " +
-					"Leave a field blank to auto-detect their values."
-		},
-		{
-			type: 'textinput',
-			id: 'inputCount',
-			label: 'Input count',
-			default: '',
-			width: 2,
-			regex: '/^\\d*$/'
-		},
-		{
-			type: 'textinput',
-			id: 'outputCount',
-			label: 'Output count',
-			default: '',
-			width: 2,
-			regex: '/^\\d*$/'
-		},
-		{
-			type: 'textinput',
-			id: 'setupsCount',
-			label: 'Preset count',
-			default: '',
-			width: 2,
-			regex: '/^\\d*$/'
-		},
-		{
-			type: 'text',
-			id: 'info',
-			width: 12,
-			label: 'Customize',
-			value: "Different matrices may use different commands. Customize them here. Leave default if unsure."
-		},
-		{
-			type: 'dropdown',
-			id: 'customizeRoute',
-			label: 'Route command',
-			default: self.ROUTE_VID,
-			width: 4,
-			choices: [
-				{ id: self.ROUTE_ROUTE, label: '#ROUTE' },
-				{ id: self.ROUTE_VID, label: '#VID' }
-			]
-		},
-		{
-			type: 'dropdown',
-			id: 'customizeDisconnect',
-			label: 'Disconnect parameter',
-			default: self.DISCONNECT_0,
-			width: 4,
-			choices: [
-				{ id: self.DISCONNECT_0, label: '0 (most common)' },
-				{ id: self.DISCONNECT_INP1, label: 'Number of inputs +1' }
-			]
-		},
 	]
 };
 
@@ -547,7 +316,7 @@ instance.prototype.config_fields = function() {
 /**
  * Cleanup when the module gets deleted.
  */
-instance.prototype.destroy = function() {
+instance.prototype.destroy = function () {
 	let self = this;
 	debug('destroy', self.id);
 
@@ -562,151 +331,91 @@ instance.prototype.destroy = function() {
 /**
  * Creates the actions for this module.
  */
-instance.prototype.actions = function(system) {
+instance.prototype.actions = function (system) {
 	let self = this;
 
-	let inputOpts  = [ { id:'0', label: 'Off' } ];
-	let outputOpts = [ { id:'0', label: 'All' } ];
-	let setups     = [ ];
-
-
-	// Set some sane minimum/maximum values on the capabilities
-	let inputCount  = Math.min(64, Math.max(1, self.config.inputCount));
-	let outputCount = Math.min(64, Math.max(1, self.config.outputCount));
-	let setupsCount = Math.min(64, Math.max(1, self.config.setupsCount));
-
-	// Build the inputs, outputs, and setups
-	for (let i=1; i<=inputCount; i++) {
-		inputOpts.push({ id:i, label: `Input ${i}` });
-	}
-	for (let i=1; i<=outputCount; i++) {
-		outputOpts.push({ id:i, label: `Output ${i}` });
-	}
-	for (let i=1; i<=setupsCount; i++) {
-		setups.push({ id:i, label: `Preset ${i}` });
-	}
-
-	self.setActions({
+	self.setActionDefinitions({
 		'switch_audio': {
-			label: 'Switch Audio',
+			name: 'Switch Audio',
 			options: [
 				{
 					type: 'dropdown',
 					label: 'Input #',
 					id: 'input',
-					default: '0',
-					choices: inputOpts
-				}, {
-					type: 'dropdown',
-					label: 'Output #',
-					id: 'output',
-					default: '0',
-					choices: outputOpts
-				}
-			]
-		},
-		'switch_video': {
-			label: 'Switch Video',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Input #',
-					id: 'input',
-					default: '0',
-					choices: inputOpts
-				}, {
-					type: 'dropdown',
-					label: 'Output #',
-					id: 'output',
-					default: '0',
-					choices: outputOpts
-				}
-			]
-		},
-		'switch_video_dynamic': {
-			label: 'Switch Video (Dynamic)',
-			options: [
-				{
-					type: 'textwithvariables',
-					label: 'Input #',
-					id: 'input',
-					default: '0'
-				}, {
-					type: 'textwithvariables',
-					label: 'Output #',
-					id: 'output',
-					default: '0'
-				}
-			]
-		},
-		'switch_audio_dynamic': {
-			label: 'Switch Audio (Dynamic)',
-			options: [
-				{
-					type: 'textwithvariables',
-					label: 'Input #',
-					id: 'input',
-					default: '0',
-					regex: '/^\\d*$/'
-				}, {
-					type: 'textwithvariables',
-					label: 'Output #',
-					id: 'output',
-					default: '0',
-					regex: '/^\\d*$/'
-				}
-			]
-		},
-		'recall_setup': {
-			label: 'Recall Preset',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Preset',
-					id: 'setup',
-					default: '1',
-					choices: setups
-				}
-			]
-		},
-		'store_setup': {
-			label: 'Store Preset',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Preset',
-					id: 'setup',
-					default: '1',
-					choices: setups
-				}
-			]
-		},
-		'delete_setup': {
-			label: 'Delete Preset',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Preset',
-					id: 'setup',
-					default: '1',
-					choices: setups
-				}
-			]
-		},
-		'front_panel': {
-			label: 'Front Panel',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Status',
-					id: 'status',
 					default: '0',
 					choices: [
-						{ id: '0', label: 'Unlock' },
-						{ id: '1', label: 'Lock' },
+						{ id: '1', label: '1' },
+						{ id: '2', label: '2' },
+						{ id: '3', label: '3' },
+						{ id: '4', label: '4' }
 					]
 				}
-			]
+			],
+			callback: (event) => {
+				self.send(`#ROUTE 2,1,${options.input}\r`);
+			}
+		},
+		'switch_video': {
+			name: 'Switch Video',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Input #',
+					id: 'input',
+					default: '0',
+					choices: [
+						{ id: '1', label: '1' },
+						{ id: '2', label: '2' },
+						{ id: '3', label: '3' },
+						{ id: '4', label: '4' }
+					]
+				}
+			],
+			callback: (event) => {
+				self.send(`#ROUTE 1,1,${options.input}\r`);
+			}
+		},
+		'switch_video_dynamic': {
+			name: 'Switch Video (Dynamic)',
+			options: [
+				{
+					type: 'textInput',
+					label: 'Input #',
+					id: 'input',
+					default: '0',
+					regex: '/^\\d*$/',
+					useVariables: true
+				}
+			],
+			callback: (event) => {
+				let input = await self.parseVariablesInString(options.input);
+				if (isNaN(input)) {
+					self.log('error', `Cannot parse '${input}' as a number. Skipping action.`);
+				} else {
+					self.send(`#ROUTE 1,1,${input}\r`);
+				}
+			}
+		},
+		'switch_audio_dynamic': {
+			name: 'Switch Audio (Dynamic)',
+			options: [
+				{
+					type: 'textInput',
+					label: 'Input #',
+					id: 'input',
+					default: '0',
+					regex: '/^\\d*$/',
+					useVariables: true
+				}
+			],
+			callback: (event) => {
+				let input = await self.parseVariablesInString(options.input);
+				if (isNaN(input)) {
+					self.log('error', `Cannot parse '${input}' as a number. Skipping action.`);
+				} else {
+					self.send(`#ROUTE 2,1,${options.input}\r`);
+				}
+			}
 		}
 	});
 
@@ -718,7 +427,7 @@ instance.prototype.actions = function(system) {
  * 
  * @param action      The action to perform
  */
-instance.prototype.action = function(action) {
+instance.prototype.action = function (action) {
 	let self = this;
 	let cmd = undefined;
 
@@ -744,37 +453,21 @@ instance.prototype.action = function(action) {
 
 	switch (action.action) {
 		case 'switch_audio':
-			cmd = self.makeCommand(self.SWITCH_AUDIO, opt.input, opt.output);
+			cmd = self.makeCommand(self.SWITCH_AUDIO, opt.input + 1, '1');
 			break;
 
 		case 'switch_video':
-			cmd = self.makeCommand(self.SWITCH_VIDEO, opt.input, opt.output);
+			cmd = self.makeCommand(self.SWITCH_VIDEO, opt.input + 1, '1');
 			break;
-			
+
 		case 'switch_audio_dynamic':
-			cmd = self.makeCommand(self.SWITCH_AUDIO, opt.input, opt.output);
+			cmd = self.makeCommand(self.SWITCH_AUDIO, opt.input, '1');
 			break;
 
 		case 'switch_video_dynamic':
-			cmd = self.makeCommand(self.SWITCH_VIDEO, opt.input, opt.output);
-			break;
-		
-		case 'store_setup':
-			cmd = self.makeCommand(self.STORE_SETUP, opt.setup, 0 /* STORE */);
+			cmd = self.makeCommand(self.SWITCH_VIDEO, opt.input, '1');
 			break;
 
-		case 'delete_setup':
-			// Not a bug. The command to delete a setup is to store it.
-			cmd = self.makeCommand(self.STORE_SETUP, opt.setup, 1 /* DELETE */);
-			break;
-
-		case 'recall_setup':
-			cmd = self.makeCommand(self.RECALL_SETUP, opt.setup, 0);
-			break;
-
-		case 'front_panel':
-			cmd = self.makeCommand(self.FRONT_PANEL, opt.status, 0);
-			break;
 
 	}
 
@@ -791,125 +484,28 @@ instance.prototype.action = function(action) {
  * @param instruction    String or base 10 instruction code for the command
  * @param paramA         String or base 10 parameter A for the instruction
  * @param paramB         String or base 10 parameter B for the instruction
- * @param machine        String or base 10 for the machine to target
+ * @param paramC         String or base 10 parameter C for the instruction
+ * @param paramD         String or base 10 parameter D for the instruction
  * @returns              The built command to send
  */
-instance.prototype.makeCommand = function(instruction, paramA, paramB, machine) {
+instance.prototype.makeCommand = function (instruction, paramA, paramB, paramC, paramD) {
 	let self = this;
 
-	switch (self.config.protocol) {
+	switch (instruction) {
+		case self.AUDIO_LEVEL:
+			return `#AUD-LVL 1,1,${paramA}\r`
 
-		case self.PROTOCOL_2000:
-			return Buffer.from([
-				parseInt(instruction, 10),
-				self.MSB + parseInt(paramA  || 0, 10),
-				self.MSB + parseInt(paramB  || 0, 10),
-				self.MSB + parseInt(machine || 1, 10)
-			]);
+		case self.SWITCH_AUDIO:
+			return `#ROUTE 2,1,${paramA}\r`;
 
+		case self.SWITCH_VIDEO:
+			return `#ROUTE 1,1,${paramA}\r`;
 
-		case self.PROTOCOL_3000:
-			switch (instruction) {
+		case self.AUDIO_MUTE:
+			return `#MUTE 1,${paramA}\r`;
 
-				case self.DEFINE_MACHINE:
-					switch (paramA) {
-
-						case self.CAPS_VIDEO_INPUTS:
-						case self.CAPS_VIDEO_OUTPUTS:
-							// Are combined into one instruction in Protocol 3000
-							return "#INFO-IO?\r";
-
-						case self.CAPS_SETUPS:
-							return "#INFO-PRST?\r";
-
-					}
-					break;
-
-				case self.SWITCH_AUDIO:
-					// paramA = inputs
-					// paramB = outputs
-
-					if (paramA === '0') {
-						paramA = self.getDisconnectParameter();
-					}
-
-					if (paramB === '0') {
-						// '0' means route to all outputs
-						paramB = '*';
-					}
-
-					switch (self.config.customizeRoute) {
-						case self.ROUTE_ROUTE:
-							return `#ROUTE 1,${paramB},${paramA}\r`;
-
-						default:
-							self.log('info', 'Audio can only be switched using the #ROUTE command.');
-							return null;
-					}
-					break;
-
-				case self.SWITCH_VIDEO:
-					// paramA = inputs
-					// paramB = outputs
-
-					if (paramA === '0') {
-						paramA = self.getDisconnectParameter();
-					}
-
-					if (paramB === '0') {
-						// '0' means route to all outputs
-						paramB = '*';
-					}
-
-					switch (self.config.customizeRoute) {
-						case self.ROUTE_ROUTE:
-							return `#ROUTE 0,${paramB},${paramA}\r`;
-
-						case self.ROUTE_VID:
-						default:
-							return `#VID ${paramA}>${paramB}\r`;
-					}
-					break;
-
-				case self.STORE_SETUP:
-					return `#PRST-STO ${paramA}\r`;
-
-				case self.DELETE_SETUP:
-					self.log('info', 'Deleting presets is not supported on Protocol 3000 matrices.');
-					return;
-
-				case self.RECALL_SETUP:
-					return `#PRST-RCL ${paramA}\r`;
-
-				case self.FRONT_PANEL:
-					return `#LOCK-FP ${paramA}\r`;
-
-			}
-
-			break;
-
-	}
-
-};
-
-
-/**
- * Difference matrices use different command to issue a disconnect.
- * Return the command appropriate for the user's matrix.
- * 
-  * @returns              The parameter to disconnect the output
- */
-instance.prototype.getDisconnectParameter = function() {
-	let self = this;
-
-	switch (self.config.customizeDisconnect) {
-		case self.DISCONNECT_INP1:
-			return this.config.inputCount + 1;
-
-		case self.DISCONNECT_0:
-		default:
-			return '0';
-
+		case self.VIDEO_MUTE:
+			return `#VMUTE 1,${paramA}\r`;
 	}
 
 };
