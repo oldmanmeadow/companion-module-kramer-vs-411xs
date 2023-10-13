@@ -27,23 +27,3 @@ Changes the audio routing of inputs to outputs, but allows **custom variables** 
 
 ### Switch Video (Dynamic)
 Changes the video routing of inputs to outputs, but allows **custom variables** to define those inputs/outputs. See Companion's **Getting started** guide for more information.
-
-
-### Recall Preset
-Recalls a stored preset (may be referred to as a *Setup* in the manual).
-
-Consult your matrix's manual to see how the numbering of the setups compares to physically using the front panel, but here's an example from one of their 6 x 6 matrixes:
-
-![matrix-panel](documentation/images/matrix-panel.png)
-
-
-### Store Preset
-Saves your current inputs and output configuration to a memory preset.
-
-
-### Delete Preset
-Deletes a stored preset (*not supported on Protocol 3000 matrices*).
-
-
-### Front Panel
-Allows you to lock or unlock the matrix's front panel. A locked front panel doesn't stop Companion from controlling the matrix.
