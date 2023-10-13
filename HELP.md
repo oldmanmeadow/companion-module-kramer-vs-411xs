@@ -1,29 +1,14 @@
-# Kramer Matrix
+# Kramer VS-411XS
 
-This module lets you to control Kramer Matrices using [Protocol 2000 (PDF)](https://k.kramerav.com/downloads/protocols/protocol_2000_rev0_51.pdf) or [Protocol 3000 (PDF)](https://k.kramerav.com/downloads/protocols/protocol_3000_3.0_master_user.pdf).
+This module allows control of Kramer VS-411XS using [Protocol 3000 (PDF)](https://k.kramerav.com/downloads/protocols/protocol_3000_3.0_master_user.pdf).
+This is a fork of the generic Kramer Matrix module to allow for more control.
 
 
 ## Instance Configuration
 _Consult your product manual for information about how to set an IP address and what your matrix supports._
 
 1. Configure your matrix with an IP address and enter it into the `Target IP` field.
-2. Choose the type of Kramer communication protocol your matrix uses, either Protocol 2000 or Protocol 3000.
 3. Choose whether your matrix uses TCP (port 5000) or UDP (port 50000).
-
-Enter the number of inputs, outputs, and presets your matrix supports. The module can auto-detect these settings if you leave those fields empty and apply your changes. Check the **Info** log in Companion to confirm the values were detected correctly. The `Counts` fields will show as empty until you refresh the page.
-
-### Route command
-Different models of matrices communicate differently, such as which command is needed to switch the audio or video inputs. Video-only matrices use `#VID` and video/audio matrices use `#ROUTE`.
-
-### Disconnect parameter
-Some matrices use `0` to disconnect an input from an output, while others use `number of inputs +1`.
-
-To determine which your matrix uses, either experiment with the `Switch Video` action to see which works, or:
-1. Open your matrix's manual.
-2. Find the Protocol 3000 section and look for a **ROUTE** or **VID** section.
-3. In the **Parameters** section, look for `0 (output disconnected)` or `5=OFF` (as seen on a 4x4 matrix).
-
-
 
 ## Actions
 ### Switch Audio
